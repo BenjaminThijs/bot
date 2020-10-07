@@ -6,4 +6,8 @@ def retrieve_token():
 
 if __name__ == "__main__":
     client = Client()
-    client.run(retrieve_token())
+
+    try:
+        client.run(retrieve_token())
+    except:
+        client.close()
