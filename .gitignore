@@ -1,2 +1,8 @@
 # Token file
 token
+
+# python
+__pycache__/
+
+# vs code
+.vscode/
