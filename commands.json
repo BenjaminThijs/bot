@@ -4,5 +4,10 @@
             "exit",
             "off"
         ]
+    },
+    "monitor": {
+        "aliases": [
+            "watch"
+        ]
     }
 }
