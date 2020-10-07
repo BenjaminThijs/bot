@@ -11,6 +11,7 @@ class Client(BaseClient):
         await self.close()
 
     async def monitor(self, message, *args):
+        # TODO: check if owner
         guild_id = message.guild.id
 
         if not args:
@@ -32,6 +33,11 @@ class Client(BaseClient):
 
                 await self.say(message.channel, f"I'm now monitoring `{message.guild.name}`!")
 
+                # TODO: potentially start loop here
+                # members = await guild.fetch_members(limit=150).flatten()
+                # joined_at, id, roles, display_name
+                # https://discordpy.readthedocs.io/en/latest/api.html?highlight=message#discord.Guild.audit_logs
+
         elif args[0] == "stop":
             if not guild_id in self.settings["monitor"]:
                 await self.say(message.channel, "I'm not monitoring this server")
@@ -40,6 +46,8 @@ class Client(BaseClient):
                 self.save_settings()
 
                 await self.say(message.channel, f"I have stopped monitoring `{message.guild.name}`")
+
+                # TODO: potentially stop loop here
 
         elif args[0] == "status":
             await self.say(message.channel, "Work in progress :)")
