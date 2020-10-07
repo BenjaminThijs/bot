@@ -48,7 +48,8 @@ class BaseClient(discord.Client):
             command = getattr(self, command_string)
                 
             try:
-                await command(message, *args)
+                async with message.channel.typing():
+                    await command(message, *args)
             except:
                 import traceback
 
