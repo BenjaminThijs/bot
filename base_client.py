@@ -15,7 +15,7 @@ class BaseClient(discord.Client):
 
     def save_settings(self):
         with open("settings.json", "w") as settings:
-            json.dump(settings, self.settings)
+            json.dump(self.settings, settings, indent=4)
 
     async def say(self, channel, msg):
         await channel.send(msg)
@@ -50,5 +50,9 @@ class BaseClient(discord.Client):
             try:
                 await command(message, *args)
             except:
+                import traceback
+
                 await self.say(message.channel, f"Something went wrong while running the command: `{command_string}`")
+                
+                traceback.print_exc()
                 return
