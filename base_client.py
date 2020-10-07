@@ -6,12 +6,16 @@ class BaseClient(discord.Client):
         super().__init__()
 
         with open("settings.json", "r") as settings:
-            _settings = json.load(settings)
+            self.settings = json.load(settings)
 
-        self.prefix = _settings["prefix"]
+        self.prefix = self.settings["prefix"]
 
         with open("commands.json", "r") as commands_json:
             self.commands = json.load(commands_json)
+
+    def save_settings(self):
+        with open("settings.json", "w") as settings:
+            json.dump(settings, self.settings)
 
     async def say(self, channel, msg):
         await channel.send(msg)
@@ -30,7 +34,7 @@ class BaseClient(discord.Client):
             command_string = command_string[1:]
 
             # First we need to find the actual command name (they might have used an alias)
-            if not hasattr(self.commands, command_string):
+            if not command_string in self.commands.keys():
                 # They might have given an alias
                 for c in self.commands.keys():
                     if command_string in self.commands[c]["aliases"]:
