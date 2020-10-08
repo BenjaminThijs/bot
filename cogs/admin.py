@@ -1,19 +1,16 @@
-import json
+from cogs.cog import Cog
 from discord.ext import commands
 
 
-class Admin(commands.Cog):
-    def __init__(self):
-        with open("settings.json", "r") as settings_file:
-            self.settings = json.load(settings_file)
-
-    def save_settings(self):
-        with open("settings.json", "w") as settings_file:
-            json.dump(self.settings, settings_file, indent=4)
+class Admin(Cog):
 
     @commands.command(name="monitor", aliases=["watch"])
     async def monitor(self, ctx, option=None):
         # TODO: check if owner
+        if ctx.guild is None:
+            await ctx.send("This command can only be used in a server")
+            return
+
         guild_id = ctx.guild.id
 
         if option is None:
