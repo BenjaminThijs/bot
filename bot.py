@@ -15,8 +15,8 @@ for c in cogs.all_cogs:
 async def on_ready():
     print(f"Logged in as {bot.user}")
 
-@bot.command(name="stop", aliases=["exit", "off"])
-async def stop(ctx, *args):
+@bot.command(name="stop", aliases=["exit", "off"], brief="Turn off the bot")
+async def stop(ctx):
     await ctx.send("Bye bye")
     await bot.close()
 
