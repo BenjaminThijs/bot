@@ -9,7 +9,7 @@ bot = commands.Bot(command_prefix="$", case_insensitive=True)
 
 # Initialize all cogs and load them
 for c in cogs.all_cogs:
-    bot.add_cog(eval(c)())
+    bot.add_cog(eval(c)(bot))
 
 @bot.event
 async def on_ready():

@@ -1,8 +1,8 @@
-from cogs.cog import Cog
+from cogs import cog
 from discord.ext import commands
 
 
-class Admin(Cog):
+class Admin(cog.Cog):
 
     @commands.group(name="monitor", aliases=["watch"], brief="Monitor the users of a server")
     async def monitor(self, ctx):
@@ -18,6 +18,7 @@ class Admin(Cog):
             await ctx.send("This command can only be used in a server")
     
     @monitor.command(name="start", brief="Start monitoring this server")
+    @cog.is_guild_owner()
     async def monitor_start(self, ctx):
         # TODO: check if owner
         guild_id = ctx.guild.id
@@ -36,6 +37,7 @@ class Admin(Cog):
             # https://discordpy.readthedocs.io/en/latest/api.html?highlight=ctx#discord.Guild.audit_logs
 
     @monitor.command(name="stop", brief="Stop monitoring this server")
+    @cog.is_guild_owner()
     async def monitor_stop(self, ctx):
         # TODO: check if owner
         guild_id = ctx.guild.id
@@ -51,5 +53,6 @@ class Admin(Cog):
             # TODO: potentially stop loop here
 
     @monitor.command(name="status", brief="Show the latest changes on this server")
+    @cog.is_guild_owner()
     async def monitor_status(self, ctx):
         await ctx.send("Work in progress :)")
