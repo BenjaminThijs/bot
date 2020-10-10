@@ -65,3 +65,9 @@ class Admin(cog.Cog):
     @cog.is_guild_owner()
     async def monitor_status(self, ctx):
         await ctx.send("Work in progress :)")
+
+    @commands.command(name="test", brief="Nobody knows if this command will even work")
+    async def test(self, ctx):
+        print("-----------------------------------------")
+        print(str(self.bot.intents))
+        ctx.guild.intents
