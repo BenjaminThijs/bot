@@ -1,51 +1,90 @@
 from discord.ext import commands
+
 import cogs
 
-# Just making sure the token is in a private file that will never be pushed
-def retrieve_token():
-    with open("token", "r") as token_file:
-        return token_file.read()
 
-# Create the bot instance
-bot = commands.Bot(command_prefix="$", case_insensitive=True)
+class Bot(commands.Bot):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-# Initialize all cogs and load them
-for c in cogs.all_cogs:
-    bot.add_cog(eval(c)(bot))
+        with open("settings.json", "r") as settings_file:
+            self.settings = json.load(settings_file)
 
-# This code runs once the bot is connected to Discord
-@bot.event
-async def on_ready():
-    print(f"Logged in as {bot.user}")
+        for c in cogs.all_cogs:
+            self.add_cog(eval(c)(self))
 
-    # Get the admin_cog
-    admin_cog = bot.get_cog("Admin")
+    def save_settings(self):
+        # This will update the settings file to be the same as self.settings
+        # This is an override so some settings might get lost
+        # TODO: do some backup thing here?
+        with open("settings.json", "w") as settings_file:
+            json.dump(self.settings, settings_file, indent=4)
 
-    # The bot has just started up, we need to check if we need to start the monitor_loop
-    if len(admin_cog.settings["monitor"]) > 0:
-        print(f"Starting monitoring loop")
-        admin_cog.monitor_loop.start()
+    def can_check_guild(self, guild_id):
+        # Is this guild part of the monitored list?
+        return guild_id in self.settings["monitor"]
 
-# We want to make sure we can turn the bot off
-# TODO: remove this once in production, or make sure only the bot owner can do this.
-@bot.command(name="stop", aliases=["exit", "off"], brief="Turn off the bot")
-async def stop(ctx):
-    await ctx.send("Bye bye")
-    await bot.close()
+    async def on_ready(self):
+        print(f"Logged in as {self.user}")
 
-# Reload command, reloads all the cogs
-@bot.command(name="reload", brief="Reload all cogs")
-async def reload(ctx):
-    for c in list(bot.cogs):
-        bot.remove_cog(c)
+        # Get the admin_cog
+        admin_cog = self.get_cog("Admin")
 
-    for c in cogs.all_cogs:
-        bot.add_cog(eval(c)(bot))
+        # The bot has just started up, we need to check if we need to start the monitor_loop
+        if len(admin_cog.settings["monitor"]) > 0:
+            print(f"Starting monitoring loop")
+            admin_cog.monitor_loop.start()
 
-    await ctx.send("Done reloading")
+    # MESSAGES
+    async def on_message_delete(self, message):
+        # If the guild is not in the monitored list we shouldn't catch this event
+        if not self.can_check_guild(message.guild.id):
+            return
 
-# Run the botloop, in case we stop the bot by force we have a try except around it.
-try:
-    bot.run(retrieve_token())
-except KeyboardInterrupt:
-    bot.close()
+    async def on_message_edit(self, before, after):
+        # If the guild is not in the monitored list we shouldn't catch this event
+        if not self.can_check_guild(before.guild.id):
+            return
+
+    # MEMBERS
+    async def on_member_join(self, member):
+        # If the guild is not in the monitored list we shouldn't catch this event
+        if not self.can_check_guild(member.guild.id):
+            return
+
+    async def on_member_remove(self, member):
+        # If the guild is not in the monitored list we shouldn't catch this event
+        if not self.can_check_guild(member.guild.id):
+            return
+
+    async def on_member_update(self, before, after):
+        # If the guild is not in the monitored list we shouldn't catch this event
+        if not self.can_check_guild(before.guild.id):
+            return
+
+    # BANS
+    async def on_member_ban(self, guild, user):
+        # If the guild is not in the monitored list we shouldn't catch this event
+        if not self.can_check_guild(guild.id):
+            return
+
+    async def on_member_unban(self, guild, user):
+        # If the guild is not in the monitored list we shouldn't catch this event
+        if not self.can_check_guild(guild.id):
+            return
+
+    # ROLES
+    async def on_guild_role_create(self, role):
+        # If the guild is not in the monitored list we shouldn't catch this event
+        if not self.can_check_guild(role.guild.id):
+            return
+
+    async def on_guild_role_delete(self, role):
+        # If the guild is not in the monitored list we shouldn't catch this event
+        if not self.can_check_guild(role.guild.id):
+            return
+
+    async def on_guild_role_update(self, before, after):
+        # If the guild is not in the monitored list we shouldn't catch this event
+        if not self.can_check_guild(before.guild.id):
+            return    
