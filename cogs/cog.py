@@ -24,11 +24,6 @@ class Cog(commands.Cog):
     async def monitor_loop(self):
         print(f"Starting monitor cycle {self.monitor_loop.current_loop} at {time.ctime(time.time())}")
 
-        # TODO: we receive a 403 Missing Acces when we try to use fetch_members in any way
-        # TODO: this is likely due to changes in discord itself, might be fixed once discord.py updates?
-        print("Skipping since the 403 issue still breaks this code")
-        return
-
         for guild_id in self.settings["monitor"]:
             # Get the actual guild from the id
             # TODO: what if the bot got removed from a server it should be monitoring?
