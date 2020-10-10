@@ -33,6 +33,16 @@ async def stop(ctx):
     await ctx.send("Bye bye")
     await bot.close()
 
+# Reload command, reloads all the cogs
+@bot.command(name="reload", brief="Reload all cogs")
+async def reload(ctx):
+    for c in list(bot.cogs):
+        bot.remove_cog(c)
+
+    for c in cogs.all_cogs:
+        bot.add_cog(eval(c)(bot))
+
+    await ctx.send("Done reloading")
 
 # Run the botloop, in case we stop the bot by force we have a try except around it.
 try:
