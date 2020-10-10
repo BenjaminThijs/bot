@@ -13,11 +13,18 @@ bot = commands.Bot(command_prefix="$", case_insensitive=True)
 for c in cogs.all_cogs:
     bot.add_cog(eval(c)(bot))
 
-# This is just so the bot owner knows the bot is online
-# It serves no functional purpose
+# This code runs once the bot is connected to Discord
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user}")
+
+    # Get the admin_cog
+    admin_cog = bot.get_cog("Admin")
+
+    # The bot has just started up, we need to check if we need to start the monitor_loop
+    if len(admin_cog.settings["monitor"]) > 0:
+        print(f"Starting monitoring loop")
+        admin_cog.monitor_loop.start()
 
 # We want to make sure we can turn the bot off
 # TODO: remove this once in production, or make sure only the bot owner can do this.
