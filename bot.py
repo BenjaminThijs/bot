@@ -27,14 +27,6 @@ class Bot(commands.Bot):
     async def on_ready(self):
         print(f"Logged in as {self.user}")
 
-        # Get the admin_cog
-        admin_cog = self.get_cog("Admin")
-
-        # The bot has just started up, we need to check if we need to start the monitor_loop
-        if len(admin_cog.settings["monitor"]) > 0:
-            print(f"Starting monitoring loop")
-            admin_cog.monitor_loop.start()
-
     # MESSAGES
     async def on_message_delete(self, message):
         # If the guild is not in the monitored list we shouldn't catch this event
