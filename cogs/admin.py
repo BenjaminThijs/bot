@@ -26,19 +26,15 @@ class Admin(cog.Cog):
         # We only care about the id of the server
         guild_id = ctx.guild.id
 
-        if guild_id in self.settings["monitor"]:
+        if guild_id in self.bot.settings["monitor"]:
             # The server is already in our list to be monitored
             await ctx.send("I'm already monitoring this server!")
         else:
             # Add the server to the list to be monitored
-            self.settings["monitor"].append(guild_id)
-            self.save_settings()
+            self.bot.settings["monitor"].append(guild_id)
+            self.bot.save_settings()
 
             await ctx.send(f"I'm now monitoring `{ctx.guild.name}`!")
-
-            # Stqrt the monitor loop in cqse its not running yet
-            if not self.monitor_loop.is_running():
-                self.monitor_loop.start()
 
     @monitor.command(name="stop", brief="Stop monitoring this server")
     @cog.is_guild_owner()
@@ -46,25 +42,35 @@ class Admin(cog.Cog):
         # We only care about the id of the server
         guild_id = ctx.guild.id
 
-        if not guild_id in self.settings["monitor"]:
+        if not guild_id in self.bot.settings["monitor"]:
             # This server is not in our list of monitored servers
             await ctx.send("I'm not monitoring this server")
         else:
             # Remove the server from the list to be monitored
-            self.settings["monitor"].remove(guild_id)
-            self.save_settings()
+            self.bot.settings["monitor"].remove(guild_id)
+            self.bot.save_settings()
 
             await ctx.send(f"I have stopped monitoring `{ctx.guild.name}`")
-
-            # NOTE: do we check if the loop is running here? Should be since something is still being monitored.
-            # Stop the loop if no servers are left to be monitored
-            if len(self.settings["monitor"]) == 0:
-                self.monitor_loop.stop()
 
     @monitor.command(name="status", brief="Show the latest changes on this server")
     @cog.is_guild_owner()
     async def monitor_status(self, ctx):
         await ctx.send("Work in progress :)")
+
+    @commands.command(name="stop", aliases=["exit", "off"], brief="Turn off the bot")
+    async def stop(self, ctx):
+        await ctx.send("Bye bye")
+        await self.bot.close()
+
+    @commands.command(name="reload", brief="Reload all cogs")
+    async def reload(self, ctx):
+        for c in list(self.bot.cogs):
+            self.bot.remove_cog(c)
+
+        for c in cogs.all_cogs:
+            self.bot.add_cog(eval(c)(self.bot))
+
+        await ctx.send("Done reloading")
 
     @commands.command(name="test", brief="Nobody knows if this command will even work")
     async def test(self, ctx):
