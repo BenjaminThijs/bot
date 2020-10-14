@@ -70,6 +70,11 @@ class Bot(commands.Bot):
         )
 
     async def on_message_edit(self, before, after):
+        # It is possible for an edit to have occured without a change in content
+        # This happens when the user shares a link for instance, since discord then edits the message to show a preview
+        if before.content == after.content:
+            return
+
         try:
             await self.log(
                 guild=before.guild,
@@ -135,6 +140,7 @@ class Bot(commands.Bot):
         )
 
     async def on_member_update(self, before, after):
+        # Called when one of the following has changed: status, activity, nickname, roles
         pass
 
     # BANS
