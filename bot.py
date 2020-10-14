@@ -83,45 +83,45 @@ class Bot(commands.Bot):
         if before.content == after.content:
             return
 
-        try:
-            await self.log(
-                guild=before.guild,
-                embed=Embed(
-                    color=Color.orange()
-                ).set_author(
-                    name=str(before.author)
-                ).add_field(
-                    name="Before",
-                    value=before.content
-                ).add_field(
-                    name="After",
-                    value=after.content
-                ).set_footer(
-                    text="edited"
-                )
+        await self.log(
+            guild=before.guild,
+            embed=Embed(
+                color=Color.orange()
+            ).set_author(
+                name=str(before.author)
+            ).add_field(
+                name="before",
+                value=before.content
+            ).add_field(
+                name="after",
+                value=after.content
+            ).set_footer(
+                text="edited"
             )
-        except discord.errors.HTTPException:
-            # Not sure why this keeps getting thrown, something to do with the add_fields
-            # The code still works though
-            r"""
-            Ignoring exception in on_message_edit
-            Traceback (most recent call last):
-            File "C:\Users\flopown\AppData\Local\Programs\Python\Python39\lib\site-packages\discord\client.py", line 333, in _run_event
-                await coro(*args, **kwargs)
-            File "D:\mass\projects\bot\bot.py", line 67, in on_message_edit
-                await self.log(
-            File "D:\mass\projects\bot\bot.py", line 47, in log
-                await channel.send(
-            File "C:\Users\flopown\AppData\Local\Programs\Python\Python39\lib\site-packages\discord\abc.py", line 904, in send
-                data = await state.http.send_message(channel.id, content, tts=tts, embed=embed,
-            File "C:\Users\flopown\AppData\Local\Programs\Python\Python39\lib\site-packages\discord\http.py", line 245, in request
-                raise HTTPException(r, data)
-            discord.errors.HTTPException: 400 Bad Request (error code: 50035): Invalid Form Body
-            In embed.fields.0.value: This field is required
-            In embed.fields.1.value: This field is required
-            """
-            pass
+        )
 
+        # Not sure why this keeps getting thrown, something to do with the add_fields
+        # The code still works though
+        r"""
+        Ignoring exception in on_message_edit
+        Traceback (most recent call last):
+        File "C:\Users\flopown\AppData\Local\Programs\Python\Python39\lib\site-packages\discord\client.py", line 333, in _run_event
+            await coro(*args, **kwargs)
+        File "D:\mass\projects\bot\bot.py", line 67, in on_message_edit
+            await self.log(
+        File "D:\mass\projects\bot\bot.py", line 47, in log
+            await channel.send(
+        File "C:\Users\flopown\AppData\Local\Programs\Python\Python39\lib\site-packages\discord\abc.py", line 904, in send
+            data = await state.http.send_message(channel.id, content, tts=tts, embed=embed,
+        File "C:\Users\flopown\AppData\Local\Programs\Python\Python39\lib\site-packages\discord\http.py", line 245, in request
+            raise HTTPException(r, data)
+        discord.errors.HTTPException: 400 Bad Request (error code: 50035): Invalid Form Body
+        In embed.fields.0.value: This field is required
+        In embed.fields.1.value: This field is required
+        """
+        pass
+
+    # TODO: fix this?
     # MEMBERS
     async def on_member_join(self, member):
         await self.log(
@@ -148,8 +148,64 @@ class Bot(commands.Bot):
         )
 
     async def on_member_update(self, before, after):
+        def _role_change(before, after):
+            before = [b.name for b in before]
+            after = [a.name for a in after]
+
+            if (role := _role_added(before, after)):
+                return "added", role
+            elif (role := _role_removed(before, after)):
+                return "removed", role    
+
+        def _role_added(before, after):
+            for role in after:
+                if role not in before:
+                    return role
+
+        def _role_removed(before, after):
+            for role in before:
+                if role not in after:
+                    return role
+
         # Called when one of the following has changed: status, activity, nickname, roles
-        pass
+        # We only care about nickname or role changes
+        if before.nick == after.nick and (action_role := _role_change(before.roles, after.roles)) is None:
+            return
+
+        # Nickname change
+        if before.nick != after.nick:
+            await self.log(
+                guild=before.guild,
+                embed=Embed(
+                    color=Color.orange()
+                ).set_author(
+                    name=str(before)
+                ).add_field(
+                    name="before",
+                    value=before.nick
+                ).add_field(
+                    name="after",
+                    value=after.nick
+                ).set_footer(
+                    text="changed nickname"
+                )
+            )
+
+        # NOTE: I really wish they added unpacking to walrus
+        if action_role:
+            action, role = action_role
+
+            await self.log(
+                guild=before.guild,
+                embed=Embed(
+                    color=Color.green() if action == "added" else Color.red(),
+                    description=role
+                ).set_author(
+                    name=str(before)
+                ).set_footer(
+                    text="role " + action
+                )
+            )
 
     # BANS
     async def on_member_ban(self, guild, user):
