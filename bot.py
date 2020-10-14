@@ -43,7 +43,7 @@ class Bot(commands.Bot):
         # If the author is the bot, ignore it
         # If this message doesnt come from a guild, ignore it
         # If the guild is not in the monitored list we shouldn't log anything
-        if embed.author == str(self.user) or guild is None or (channel_id := self.can_check_guild(guild)) is None:
+        if guild is None or (channel_id := self.can_check_guild(guild)) is None:
             return
 
         # We need to retrieve the channel from the id first
@@ -57,6 +57,10 @@ class Bot(commands.Bot):
     # MESSAGES
     # TODO: what to do with files?
     async def on_message_delete(self, message):
+        # If the message was sent by the bot, or is in the channel where we are logging, ignore
+        if message.author == self.user or message.channel.id == self.can_check_guild(message.guild):
+            return
+
         await self.log(
             guild=message.guild,
             embed=Embed(
@@ -70,6 +74,10 @@ class Bot(commands.Bot):
         )
 
     async def on_message_edit(self, before, after):
+        # If the message was sent by the bot, or is in the channel where we are logging, ignore
+        if before.author == self.user or before.channel.id == self.can_check_guild(before.guild):
+            return
+
         # It is possible for an edit to have occured without a change in content
         # This happens when the user shares a link for instance, since discord then edits the message to show a preview
         if before.content == after.content:
