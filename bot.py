@@ -1,9 +1,10 @@
 import os
 import json
 import datetime
+import asyncio
 
 import discord
-from discord import Embed, Color
+from discord import Embed, Color, AuditLogAction
 from discord.ext import commands
 
 import cogs
@@ -38,6 +39,12 @@ class Bot(commands.Bot):
     async def on_ready(self):
         print(f"Logged in as {self.user}")
 
+    async def send(self, channel, embed):
+        # Send the embed
+        await channel.send(
+            embed=embed
+        )
+
     # Watcher logging method
     async def log(self, guild, embed):
         # If the author is the bot, ignore it
@@ -49,17 +56,19 @@ class Bot(commands.Bot):
         # We need to retrieve the channel from the id first
         channel = await self.fetch_channel(channel_id)
 
-        # Send the log
-        await channel.send(
-            embed=embed
-        )
+        await self.send(channel, embed)
 
     # MESSAGES
-    # TODO: what to do with files?
     async def on_message_delete(self, message):
+        # TODO: what to do with files?
         # If the message was sent by the bot, or is in the channel where we are logging, ignore
         if message.author == self.user or message.channel.id == self.can_check_guild(message.guild):
             return
+
+        # TODO: to check if someone else removed the message you need to retrieve the audit-logs
+        # NOTE: The problem here is that the entry.created_at doesnt change even if a second message from the same user gets removed by the same user in the same channel
+        # NOTE: the only thing that changes in the entry is the entry.extra.count, but the only way we can use this is by keeping track of this count in memory.
+        # NOTE: this makes it so that we basically have to check all this stuff ourselves, so ye, skip that for now
 
         await self.log(
             guild=message.guild,
@@ -69,7 +78,7 @@ class Bot(commands.Bot):
             ).set_author(
                 name=str(message.author)
             ).set_footer(
-                text="deleted"
+                text="deleted their own message"
             )
         )
 
@@ -100,28 +109,6 @@ class Bot(commands.Bot):
             )
         )
 
-        # Not sure why this keeps getting thrown, something to do with the add_fields
-        # The code still works though
-        r"""
-        Ignoring exception in on_message_edit
-        Traceback (most recent call last):
-        File "C:\Users\flopown\AppData\Local\Programs\Python\Python39\lib\site-packages\discord\client.py", line 333, in _run_event
-            await coro(*args, **kwargs)
-        File "D:\mass\projects\bot\bot.py", line 67, in on_message_edit
-            await self.log(
-        File "D:\mass\projects\bot\bot.py", line 47, in log
-            await channel.send(
-        File "C:\Users\flopown\AppData\Local\Programs\Python\Python39\lib\site-packages\discord\abc.py", line 904, in send
-            data = await state.http.send_message(channel.id, content, tts=tts, embed=embed,
-        File "C:\Users\flopown\AppData\Local\Programs\Python\Python39\lib\site-packages\discord\http.py", line 245, in request
-            raise HTTPException(r, data)
-        discord.errors.HTTPException: 400 Bad Request (error code: 50035): Invalid Form Body
-        In embed.fields.0.value: This field is required
-        In embed.fields.1.value: This field is required
-        """
-        pass
-
-    # TODO: fix this?
     # MEMBERS
     async def on_member_join(self, member):
         await self.log(
@@ -136,16 +123,50 @@ class Bot(commands.Bot):
         )
 
     async def on_member_remove(self, member):
-        await self.log(
-            guild=member.guild,
-            embed=Embed(
-                color=Color.red()
-            ).set_author(
-                name=str(member)
-            ).set_footer(
-                text="left / kicked"
-            )
-        )
+        # TODO: this also triggers on ban
+        # TODO: what if we arent allowed to see audit logs
+        # NOTE: we assume the event always gets called before the audit logs get updated
+        trigger_time = datetime.datetime.utcnow() - datetime.timedelta(seconds=10)
+
+        # Give Discord some time to put the potential kick in the audit logs
+        await asyncio.sleep(1)
+
+        # Check all kicks after this event was triggered
+        async for entry in member.guild.audit_logs(action=AuditLogAction.kick):
+            # NOTE: the `after`-tag in audit_logs seems to get ignored :|, so we have to check manually
+            if trigger_time > entry.created_at:
+                # No entry was found mentioning this kick
+                # The member was not kicked, they left
+                await self.log(
+                    guild=member.guild,
+                    embed=Embed(
+                        color=Color.red()
+                    ).set_author(
+                        name=str(member)
+                    ).set_footer(
+                        text="left the server"
+                    )
+                )
+                break
+
+            elif entry.target == member:
+                # Check if the target is the member that left
+                # They got kicked
+                await self.log(
+                    guild=member.guild,
+                    embed=Embed(
+                        color=Color.red()
+                    ).set_author(
+                        name=str(entry.user)
+                    ).add_field(
+                        name="kicked",
+                        value=str(member)
+                    ).add_field(
+                        name="reason",
+                        value=entry.reason
+                    )
+                )
+                break
 
     async def on_member_update(self, before, after):
         def _role_change(before, after):
@@ -209,28 +230,83 @@ class Bot(commands.Bot):
 
     # BANS
     async def on_member_ban(self, guild, user):
-        await self.log(
-            guild=guild,
-            embed=Embed(
-                color=Color.red()
-            ).set_author(
-                name=str(user)
-            ).set_footer(
-                text="banned"
-            )
-        )
+        # TODO: what if we arent allowed to see audit logs
+        # NOTE: we assume the event always gets called before the audit logs get updated
+        trigger_time = datetime.datetime.utcnow() - datetime.timedelta(seconds=10)
+
+        # Give Discord some time to put the ban in the audit logs
+        await asyncio.sleep(1)
+
+        # Only check bans and after the time this event got triggered
+        async for entry in guild.audit_logs(action=AuditLogAction.ban):
+            # NOTE: the `after`-tag in audit_logs seems to get ignored :|, so we have to check manually
+            if trigger_time > entry.created_at:
+                await self.log(
+                    guild=guild,
+                    embed=Embed(
+                        color=Color.purple(),
+                        description="Ban happened, but audit logs dont seem to have information"
+                    ).set_author(
+                        name=str(user)
+                    )
+                )
+                break
+
+            elif entry.target == user:
+                # Check if the target is the user that got banned
+                await self.log(
+                    guild=guild,
+                    embed=Embed(
+                        color=Color.red()
+                    ).set_author(
+                        name=str(entry.user)
+                    ).add_field(
+                        name="banned",
+                        value=str(user)
+                    ).add_field(
+                        name="reason",
+                        value=entry.reason
+                    )
+                )
+                break
 
     async def on_member_unban(self, guild, user):
-        await self.log(
-            guild=guild,
-            embed=Embed(
-                color=Color.green()
-            ).set_author(
-                name=str(user)
-            ).set_footer(
-                text="unbanned"
-            )
-        )
+        # TODO: what if we arent allowed to see audit logs
+        # NOTE: we assume the event always gets called before the audit logs get updated
+        trigger_time = datetime.datetime.utcnow() - datetime.timedelta(seconds=10)
+
+        # Give Discord some time to put the unban in the audit logs
+        await asyncio.sleep(1)
+
+        # Only check unbans and after the time this event got triggered
+        async for entry in guild.audit_logs(action=AuditLogAction.unban):
+            # NOTE: the `after`-tag in audit_logs seems to get ignored :|, so we have to check manually
+            if trigger_time > entry.created_at:
+                await self.log(
+                    guild=guild,
+                    embed=Embed(
+                        color=Color.purple(),
+                        description="Unban happened, but audit logs dont seem to have information"
+                    ).set_author(
+                        name=str(user)
+                    )
+                )
+                break
+
+            elif entry.target == user:
+                # Check if the target is the user that got unbanned
+                await self.log(
+                    guild=guild,
+                    embed=Embed(
+                        color=Color.green()
+                    ).set_author(
+                        name=str(entry.user)
+                    ).add_field(
+                        name="unbanned",
+                        value=str(user)
+                    )
+                )
+                break
 
     # ROLES
     async def on_guild_role_create(self, role):
@@ -240,7 +316,7 @@ class Bot(commands.Bot):
                 description=role.name,
                 color=Color.green()
             ).set_footer(
-                text="role added"
+                text="role created"
             )
         )
 
