@@ -1,5 +1,5 @@
 # Token file
-token
+token*
 
 # python
 __pycache__/
